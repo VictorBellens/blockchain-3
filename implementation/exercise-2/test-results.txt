@@ -1,0 +1,27 @@
+﻿No contracts to compile
+No Solidity tests to compile
+
+Running Solidity tests
+
+
+Running Mocha tests
+
+
+  EventTickets
+    ΓêÜ should allow admin to create events
+    ΓêÜ should reject event creation by non-admin (76ms)
+    ΓêÜ should allow user to buy a ticket
+    ΓêÜ should reject ticket purchase with insufficient payment
+    ΓêÜ should reject purchase when event is sold out
+    ΓêÜ should allow owner to transfer a ticket
+    ΓêÜ should reject transfer by non-owner
+    ΓêÜ should support full resale flow: list ΓåÆ buy
+    ΓêÜ should reject buying own resale listing
+    ΓêÜ should allow owner to cancel a resale listing
+
+
+  10 passing (747ms)
+
+
+10 passing (10 mocha)
+

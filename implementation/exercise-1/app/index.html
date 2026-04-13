@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vending Machine dApp</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --border: #334155;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 { font-size: 1.4rem; }
+
+    #connectBtn {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    #connectBtn:hover { background: var(--accent-hover); }
+
+    #walletInfo {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+
+    .section-title {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    .product-card h3 { margin-bottom: 0.5rem; }
+
+    .product-card .info {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .product-card .info span {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .product-card .buy-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .product-card input[type="number"] {
+      width: 60px;
+      padding: 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      text-align: center;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-buy { background: var(--success); color: #fff; }
+    .btn-buy:hover { opacity: 0.9; }
+    .btn-buy:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-admin { background: var(--accent); color: #0f172a; }
+    .btn-admin:hover { opacity: 0.9; }
+
+    .out-of-stock {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    #adminPanel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: none;
+    }
+
+    #adminPanel h3 { margin-bottom: 1rem; color: var(--accent); }
+
+    .admin-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .admin-row label { font-size: 0.85rem; width: 100px; color: var(--muted); }
+
+    .admin-row input, .admin-row select {
+      padding: 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      flex: 1;
+      max-width: 200px;
+    }
+
+    #statusBar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #statusMsg { color: var(--muted); }
+    #statusMsg.success { color: var(--success); }
+    #statusMsg.error { color: var(--error); }
+
+    .purchases-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2rem;
+    }
+
+    .purchases-table th, .purchases-table td {
+      padding: 0.6rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+
+    .purchases-table th { color: var(--muted); }
+
+    .empty-msg { color: var(--muted); font-style: italic; padding: 1rem 0; }
+
+    footer { height: 60px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vending Machine dApp</h1>
+    <div>
+      <span id="walletInfo">Not connected</span>
+      <button id="connectBtn">Connect Wallet</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="adminPanel">
+      <h3>Admin Panel</h3>
+      <div class="admin-row">
+        <label>Restock ID:</label>
+        <select id="restockProductId"></select>
+        <label>Qty:</label>
+        <input type="number" id="restockQty" min="1" value="10" />
+        <button class="btn btn-admin" id="restockBtn">Restock</button>
+      </div>
+      <div class="admin-row">
+        <label>New product:</label>
+        <input type="text" id="newName" placeholder="Name" />
+        <input type="text" id="newPrice" placeholder="Price (ETH)" />
+        <input type="number" id="newStock" placeholder="Stock" min="0" />
+        <button class="btn btn-admin" id="addProductBtn">Add Product</button>
+      </div>
+      <div class="admin-row">
+        <button class="btn btn-admin" id="withdrawBtn">Withdraw Funds</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">Available Products</h2>
+    <div id="products" class="products-grid">
+      <p class="empty-msg">Loading products...</p>
+    </div>
+
+    <h2 class="section-title">Your Purchase History</h2>
+    <div id="purchases">
+      <p class="empty-msg">Connect wallet to view purchases.</p>
+    </div>
+  </div>
+
+  <div id="statusBar">
+    <span id="statusMsg">Ready</span>
+    <span id="networkInfo"></span>
+  </div>
+
+  <footer></footer>
+
+  <script>
+    // ===== CONFIGURATION =====
+    // Update this after deploying the contract
+    const CONTRACT_ADDRESS = "PASTE_DEPLOYED_ADDRESS_HERE";
+
+    const CONTRACT_ABI = [
+      "function admin() view returns (address)",
+      "function nextProductId() view returns (uint256)",
+      "function getProduct(uint256) view returns (string, uint256, uint256)",
+      "function getProductCount() view returns (uint256)",
+      "function getPurchases(address) view returns (tuple(uint256 productId, uint256 quantity, uint256 totalPaid, uint256 timestamp)[])",
+      "function purchase(uint256, uint256) payable",
+      "function restock(uint256, uint256)",
+      "function addProduct(string, uint256, uint256) returns (uint256)",
+      "function withdraw()",
+      "event ItemPurchased(address indexed buyer, uint256 indexed productId, uint256 quantity, uint256 totalPaid)",
+      "event ProductRestocked(uint256 indexed productId, uint256 addedQuantity, uint256 newStock)",
+      "event ProductAdded(uint256 indexed productId, string name, uint256 price, uint256 stock)",
+      "event FundsWithdrawn(address indexed admin, uint256 amount)"
+    ];
+
+    let provider, signer, contract, userAddress, isAdmin;
+
+    const $ = (s) => document.querySelector(s);
+
+    function setStatus(msg, type = "") {
+      const el = $("#statusMsg");
+      el.textContent = msg;
+      el.className = type;
+    }
+
+    // ===== CONNECT WALLET =====
+    $("#connectBtn").addEventListener("click", async () => {
+      if (!window.ethereum) {
+        alert("Please install MetaMask or another Web3 wallet.");
+        return;
+      }
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+        const network = await provider.getNetwork();
+        $("#networkInfo").textContent = `Chain ${network.chainId}`;
+        $("#walletInfo").textContent = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+        $("#connectBtn").textContent = "Connected";
+        $("#connectBtn").disabled = true;
+
+        const adminAddr = await contract.admin();
+        isAdmin = adminAddr.toLowerCase() === userAddress.toLowerCase();
+        if (isAdmin) {
+          $("#adminPanel").style.display = "block";
+        }
+
+        setStatus("Wallet connected", "success");
+        await loadProducts();
+        await loadPurchases();
+
+        listenForEvents();
+      } catch (e) {
+        setStatus("Connection failed: " + e.message, "error");
+      }
+    });
+
+    // ===== LOAD PRODUCTS =====
+    async function loadProducts() {
+      try {
+        const count = await contract.getProductCount();
+        const grid = $("#products");
+        grid.innerHTML = "";
+
+        const restockSelect = $("#restockProductId");
+        restockSelect.innerHTML = "";
+
+        for (let i = 0; i < count; i++) {
+          const [name, price, stock] = await contract.getProduct(i);
+          const priceEth = ethers.formatEther(price);
+          const inStock = stock > 0n;
+
+          const card = document.createElement("div");
+          card.className = "product-card";
+          card.innerHTML = `
+            <h3>${name}</h3>
+            <div class="info">
+              <span>Price: ${priceEth} ETH</span>
+              <span>Stock: ${inStock ? stock.toString() : '<span class="out-of-stock">Out of Stock</span>'}</span>
+              <span>Product ID: ${i}</span>
+            </div>
+            <div class="buy-row">
+              <input type="number" min="1" max="${stock}" value="1" id="qty-${i}" ${!inStock ? "disabled" : ""} />
+              <button class="btn btn-buy" onclick="buyProduct(${i})" ${!inStock ? "disabled" : ""}>Buy</button>
+            </div>
+          `;
+          grid.appendChild(card);
+
+          const opt = document.createElement("option");
+          opt.value = i;
+          opt.textContent = `${i} — ${name}`;
+          restockSelect.appendChild(opt);
+        }
+
+        if (count === 0n) {
+          grid.innerHTML = '<p class="empty-msg">No products available.</p>';
+        }
+      } catch (e) {
+        setStatus("Failed to load products: " + e.message, "error");
+      }
+    }
+
+    // ===== PURCHASE =====
+    window.buyProduct = async function (productId) {
+      try {
+        const qty = parseInt(document.getElementById(`qty-${productId}`).value);
+        if (qty < 1) { setStatus("Invalid quantity", "error"); return; }
+
+        const [, price] = await contract.getProduct(productId);
+        const total = price * BigInt(qty);
+
+        setStatus(`Sending transaction for ${qty} item(s)...`);
+        const tx = await contract.purchase(productId, qty, { value: total });
+        setStatus("Transaction sent, waiting for confirmation...");
+        await tx.wait();
+        setStatus("Purchase successful!", "success");
+
+        await loadProducts();
+        await loadPurchases();
+      } catch (e) {
+        const reason = e.reason || e.message;
+        setStatus("Purchase failed: " + reason, "error");
+      }
+    };
+
+    // ===== LOAD PURCHASES =====
+    async function loadPurchases() {
+      try {
+        const purchases = await contract.getPurchases(userAddress);
+        const container = $("#purchases");
+
+        if (purchases.length === 0) {
+          container.innerHTML = '<p class="empty-msg">No purchases yet.</p>';
+          return;
+        }
+
+        // resolve product names
+        const count = await contract.getProductCount();
+        const names = {};
+        for (let i = 0; i < count; i++) {
+          const [name] = await contract.getProduct(i);
+          names[i] = name;
+        }
+
+        let html = `<table class="purchases-table">
+          <thead><tr><th>Product</th><th>Qty</th><th>Paid (ETH)</th><th>Date</th></tr></thead><tbody>`;
+        for (const p of purchases) {
+          const date = new Date(Number(p.timestamp) * 1000).toLocaleString();
+          html += `<tr>
+            <td>${names[Number(p.productId)] || "ID " + p.productId}</td>
+            <td>${p.quantity.toString()}</td>
+            <td>${ethers.formatEther(p.totalPaid)}</td>
+            <td>${date}</td>
+          </tr>`;
+        }
+        html += "</tbody></table>";
+        container.innerHTML = html;
+      } catch (e) {
+        setStatus("Failed to load purchases: " + e.message, "error");
+      }
+    }
+
+    // ===== ADMIN ACTIONS =====
+    $("#restockBtn").addEventListener("click", async () => {
+      try {
+        const id = parseInt($("#restockProductId").value);
+        const qty = parseInt($("#restockQty").value);
+        setStatus("Restocking...");
+        const tx = await contract.restock(id, qty);
+        await tx.wait();
+        setStatus("Restocked successfully!", "success");
+        await loadProducts();
+      } catch (e) {
+        setStatus("Restock failed: " + (e.reason || e.message), "error");
+      }
+    });
+
+    $("#addProductBtn").addEventListener("click", async () => {
+      try {
+        const name = $("#newName").value.trim();
+        const priceEth = $("#newPrice").value.trim();
+        const stock = parseInt($("#newStock").value);
+        if (!name || !priceEth || isNaN(stock)) {
+          setStatus("Fill in all fields", "error");
+          return;
+        }
+        setStatus("Adding product...");
+        const tx = await contract.addProduct(name, ethers.parseEther(priceEth), stock);
+        await tx.wait();
+        setStatus("Product added!", "success");
+        await loadProducts();
+      } catch (e) {
+        setStatus("Add failed: " + (e.reason || e.message), "error");
+      }
+    });
+
+    $("#withdrawBtn").addEventListener("click", async () => {
+      try {
+        setStatus("Withdrawing funds...");
+        const tx = await contract.withdraw();
+        await tx.wait();
+        setStatus("Funds withdrawn!", "success");
+      } catch (e) {
+        setStatus("Withdraw failed: " + (e.reason || e.message), "error");
+      }
+    });
+
+    // ===== LIVE EVENT LISTENER =====
+    function listenForEvents() {
+      contract.on("ItemPurchased", (buyer, productId, quantity, totalPaid) => {
+        console.log("ItemPurchased:", buyer, productId.toString(), quantity.toString());
+        loadProducts();
+      });
+      contract.on("ProductRestocked", (productId, added, newStock) => {
+        console.log("ProductRestocked:", productId.toString(), added.toString(), newStock.toString());
+        loadProducts();
+      });
+    }
+  </script>
+</body>
+</html>

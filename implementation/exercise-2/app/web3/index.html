@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Tickets — Web3</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --surface:#1e293b; --border:#334155; --accent:#a78bfa;
+      --accent2:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --success:#22c55e; --error:#ef4444; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border);
+      padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { font-size:1.3rem; }
+    .badge { background:var(--success); color:#000; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:700; margin-left:0.5rem; }
+
+    #connectBtn { background:var(--accent); color:#000; border:none; padding:0.6rem 1.2rem; border-radius:8px;
+      font-weight:600; cursor:pointer; font-size:0.9rem; }
+    #connectBtn:hover { opacity:0.9; }
+    #walletInfo { font-size:0.85rem; color:var(--muted); margin-right:0.5rem; }
+
+    .container { max-width:1100px; margin:1.5rem auto; padding:0 1rem; }
+    .tabs { display:flex; gap:0; margin-bottom:1.5rem; border-bottom:1px solid var(--border); }
+    .tab { padding:0.7rem 1.5rem; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; font-weight:600; }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+    .section { display:none; } .section.active { display:block; }
+    .section-title { font-size:1rem; margin-bottom:1rem; color:var(--accent2); }
+
+    .card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.2rem; }
+    .card h3 { margin-bottom:0.3rem; }
+    .card .meta { color:var(--muted); font-size:0.85rem; margin-bottom:0.7rem; line-height:1.6; }
+    .card .meta span { display:block; }
+
+    .btn { padding:0.45rem 0.9rem; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.82rem; }
+    .btn-primary { background:var(--accent); color:#000; }
+    .btn-accent { background:var(--accent2); color:#000; }
+    .btn-danger { background:var(--error); color:#fff; }
+    .btn:hover { opacity:0.9; }
+    .btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+    .row { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+    input[type=text],input[type=number],input[type=date] { padding:0.4rem; border:1px solid var(--border);
+      border-radius:6px; background:var(--bg); color:var(--text); }
+
+    table { width:100%; border-collapse:collapse; margin-top:0.5rem; }
+    th,td { padding:0.5rem 0.8rem; text-align:left; border-bottom:1px solid var(--border); font-size:0.85rem; }
+    th { color:var(--muted); }
+
+    .toast { position:fixed; bottom:1rem; right:1rem; padding:0.8rem 1.2rem; border-radius:8px;
+      font-size:0.85rem; font-weight:600; z-index:999; animation:fade 3s forwards; }
+    .toast.success { background:var(--success); color:#fff; }
+    .toast.error { background:var(--error); color:#fff; }
+    @keyframes fade { 0%,70%{opacity:1} 100%{opacity:0} }
+    .empty { color:var(--muted); font-style:italic; }
+
+    .admin-form { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.2rem; margin-bottom:1.5rem; }
+    .admin-form h3 { color:var(--accent); margin-bottom:0.8rem; }
+    .form-row { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.5rem; }
+    .form-row label { font-size:0.85rem; color:var(--muted); width:90px; }
+    .form-row input { flex:1; max-width:200px; }
+
+    #statusBar { position:fixed; bottom:0; left:0; right:0; background:var(--surface);
+      border-top:1px solid var(--border); padding:0.6rem 2rem; font-size:0.82rem;
+      display:flex; justify-content:space-between; }
+    footer { height:50px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Event Tickets<span class="badge">WEB3</span></h1>
+    <div class="row">
+      <span id="walletInfo">Not connected</span>
+      <button id="connectBtn">Connect Wallet</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" data-tab="events">Events</div>
+      <div class="tab" data-tab="mytickets">My Tickets</div>
+      <div class="tab" data-tab="marketplace">Marketplace</div>
+      <div class="tab" data-tab="admin">Admin</div>
+    </div>
+
+    <div class="section active" id="sec-events">
+      <h2 class="section-title">Upcoming Events</h2>
+      <div id="eventsList" class="card-grid"><p class="empty">Connect wallet to view events.</p></div>
+    </div>
+
+    <div class="section" id="sec-mytickets">
+      <h2 class="section-title">Your Tickets</h2>
+      <div id="myTickets"><p class="empty">Connect wallet first.</p></div>
+    </div>
+
+    <div class="section" id="sec-marketplace">
+      <h2 class="section-title">Resale Marketplace</h2>
+      <div id="marketplace" class="card-grid"><p class="empty">Connect wallet first.</p></div>
+    </div>
+
+    <div class="section" id="sec-admin">
+      <div id="adminGate"><p class="empty">Connect wallet first.</p></div>
+      <div class="admin-form" id="adminForm" style="display:none">
+        <h3>Create New Event</h3>
+        <div class="form-row"><label>Name:</label><input type="text" id="evName" /></div>
+        <div class="form-row"><label>Date:</label><input type="text" id="evDate" placeholder="YYYY-MM-DD" /></div>
+        <div class="form-row"><label>Venue:</label><input type="text" id="evVenue" /></div>
+        <div class="form-row"><label>Price (ETH):</label><input type="text" id="evPrice" placeholder="0.05" /></div>
+        <div class="form-row"><label>Tickets:</label><input type="number" id="evTotal" min="1" value="100" /></div>
+        <div class="form-row"><button class="btn btn-primary" id="createEventBtn">Create Event</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusBar">
+    <span id="statusMsg">Ready</span>
+    <span id="networkInfo"></span>
+  </div>
+  <footer></footer>
+
+  <script>
+    // ===== CONFIG =====
+    const CONTRACT_ADDRESS = "PASTE_DEPLOYED_ADDRESS_HERE";
+
+    const CONTRACT_ABI = [
+      "function admin() view returns (address)",
+      "function getEventCount() view returns (uint256)",
+      "function getTicketCount() view returns (uint256)",
+      "function getEventInfo(uint256) view returns (string, string, string, uint256, uint256, uint256)",
+      "function getTicket(uint256) view returns (uint256, address, bool, uint256)",
+      "function createEvent(string, string, string, uint256, uint256) returns (uint256)",
+      "function buyTicket(uint256) payable returns (uint256)",
+      "function transferTicket(uint256, address)",
+      "function listForSale(uint256, uint256)",
+      "function cancelSale(uint256)",
+      "function buyResale(uint256) payable",
+      "function withdraw()",
+      "event EventCreated(uint256 indexed eventId, string name, uint256 ticketPrice, uint256 totalTickets)",
+      "event TicketPurchased(uint256 indexed ticketId, uint256 indexed eventId, address indexed buyer, uint256 price)",
+      "event TicketTransferred(uint256 indexed ticketId, address indexed from, address indexed to)",
+      "event TicketListedForSale(uint256 indexed ticketId, uint256 price)",
+      "event TicketSaleCompleted(uint256 indexed ticketId, address indexed seller, address indexed buyer, uint256 price)",
+      "event TicketSaleCancelled(uint256 indexed ticketId)"
+    ];
+
+    let provider, signer, contract, userAddress, isAdmin;
+    const $ = (s) => document.querySelector(s);
+
+    function status(msg, cls) { const el = $("#statusMsg"); el.textContent = msg; el.className = cls || ""; }
+    function toast(msg, type="success") {
+      const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = msg;
+      document.body.appendChild(el); setTimeout(() => el.remove(), 3200);
+    }
+
+    // Tabs
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+        document.querySelectorAll(".section").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        document.getElementById("sec-" + t.dataset.tab).classList.add("active");
+        if (contract) refresh();
+      });
+    });
+
+    // Connect
+    $("#connectBtn").addEventListener("click", async () => {
+      if (!window.ethereum) { alert("Install MetaMask"); return; }
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+        const net = await provider.getNetwork();
+        $("#networkInfo").textContent = `Chain ${net.chainId}`;
+        $("#walletInfo").textContent = userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+        $("#connectBtn").textContent = "Connected";
+        $("#connectBtn").disabled = true;
+
+        const adminAddr = await contract.admin();
+        isAdmin = adminAddr.toLowerCase() === userAddress.toLowerCase();
+        if (isAdmin) { $("#adminForm").style.display = "block"; $("#adminGate").innerHTML = ""; }
+        else { $("#adminGate").innerHTML = '<p class="empty">Admin access required.</p>'; }
+
+        status("Wallet connected", "");
+        refresh();
+      } catch (e) { status("Connection failed: " + e.message); }
+    });
+
+    async function refresh() {
+      await Promise.all([loadEvents(), loadMyTickets(), loadMarketplace()]);
+    }
+
+    // Load events
+    async function loadEvents() {
+      const count = await contract.getEventCount();
+      const el = $("#eventsList");
+      if (count === 0n) { el.innerHTML = '<p class="empty">No events.</p>'; return; }
+      let html = "";
+      for (let i = 0; i < count; i++) {
+        const [name, date, venue, price, total, sold] = await contract.getEventInfo(i);
+        const avail = total - sold;
+        html += `<div class="card">
+          <h3>${name}</h3>
+          <div class="meta">
+            <span>Date: ${date}</span><span>Venue: ${venue}</span>
+            <span>Price: ${ethers.formatEther(price)} ETH</span>
+            <span>Available: ${avail} / ${total}</span>
+          </div>
+          <button class="btn btn-primary" onclick="buyTicketFn(${i}, '${price}')" ${avail <= 0n ? "disabled" : ""}>
+            ${avail > 0n ? "Buy Ticket" : "Sold Out"}
+          </button>
+        </div>`;
+      }
+      el.innerHTML = html;
+    }
+
+    window.buyTicketFn = async (eventId, priceWei) => {
+      try {
+        status("Buying ticket...");
+        const tx = await contract.buyTicket(eventId, { value: BigInt(priceWei) });
+        await tx.wait();
+        toast("Ticket purchased!");
+        refresh();
+      } catch (e) { toast(e.reason || e.message, "error"); }
+    };
+
+    // Load my tickets
+    async function loadMyTickets() {
+      const ticketCount = await contract.getTicketCount();
+      const el = $("#myTickets");
+      let tickets = [];
+      for (let i = 0; i < ticketCount; i++) {
+        const [eventId, owner, forSale, resalePrice] = await contract.getTicket(i);
+        if (owner.toLowerCase() === userAddress.toLowerCase()) {
+          const [name] = await contract.getEventInfo(eventId);
+          tickets.push({ id: i, eventId, name, forSale, resalePrice });
+        }
+      }
+      if (tickets.length === 0) { el.innerHTML = '<p class="empty">No tickets.</p>'; return; }
+      el.innerHTML = `<table><thead><tr><th>ID</th><th>Event</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        ${tickets.map(t => `<tr>
+          <td>#${t.id}</td><td>${t.name}</td>
+          <td>${t.forSale ? "Listed (" + ethers.formatEther(t.resalePrice) + " ETH)" : "Owned"}</td>
+          <td class="row">${!t.forSale ? `
+            <input type="text" id="rp-${t.id}" placeholder="ETH" style="width:60px" />
+            <button class="btn btn-accent" onclick="listFn(${t.id})">List</button>
+            <input type="text" id="tf-${t.id}" placeholder="0x..." style="width:120px" />
+            <button class="btn btn-danger" onclick="transferFn(${t.id})">Transfer</button>
+          ` : `<button class="btn btn-danger" onclick="cancelFn(${t.id})">Cancel</button>`}</td>
+        </tr>`).join("")}</tbody></table>`;
+    }
+
+    window.listFn = async (ticketId) => {
+      const val = document.getElementById(`rp-${ticketId}`).value;
+      if (!val) { toast("Enter price", "error"); return; }
+      try {
+        status("Listing...");
+        const tx = await contract.listForSale(ticketId, ethers.parseEther(val));
+        await tx.wait(); toast("Listed!"); refresh();
+      } catch (e) { toast(e.reason || e.message, "error"); }
+    };
+
+    window.cancelFn = async (ticketId) => {
+      try { const tx = await contract.cancelSale(ticketId); await tx.wait(); toast("Cancelled"); refresh(); }
+      catch (e) { toast(e.reason || e.message, "error"); }
+    };
+
+    window.transferFn = async (ticketId) => {
+      const addr = document.getElementById(`tf-${ticketId}`).value;
+      if (!addr) { toast("Enter address", "error"); return; }
+      try {
+        status("Transferring...");
+        const tx = await contract.transferTicket(ticketId, addr);
+        await tx.wait(); toast("Transferred!"); refresh();
+      } catch (e) { toast(e.reason || e.message, "error"); }
+    };
+
+    // Marketplace
+    async function loadMarketplace() {
+      const ticketCount = await contract.getTicketCount();
+      const el = $("#marketplace");
+      let listings = [];
+      for (let i = 0; i < ticketCount; i++) {
+        const [eventId, owner, forSale, resalePrice] = await contract.getTicket(i);
+        if (forSale) {
+          const [name, date] = await contract.getEventInfo(eventId);
+          listings.push({ id: i, name, date, owner, resalePrice, isMine: owner.toLowerCase() === userAddress.toLowerCase() });
+        }
+      }
+      if (listings.length === 0) { el.innerHTML = '<p class="empty">No listings.</p>'; return; }
+      el.innerHTML = listings.map(l => `<div class="card">
+        <h3>${l.name}</h3>
+        <div class="meta">
+          <span>Date: ${l.date}</span>
+          <span>Seller: ${l.owner.slice(0,6)}...${l.owner.slice(-4)}</span>
+          <span>Price: ${ethers.formatEther(l.resalePrice)} ETH</span>
+        </div>
+        <button class="btn btn-primary" onclick="buyResaleFn(${l.id}, '${l.resalePrice}')" ${l.isMine ? "disabled" : ""}>
+          ${l.isMine ? "Your listing" : "Buy"}
+        </button>
+      </div>`).join("");
+    }
+
+    window.buyResaleFn = async (ticketId, priceWei) => {
+      try {
+        status("Buying resale ticket...");
+        const tx = await contract.buyResale(ticketId, { value: BigInt(priceWei) });
+        await tx.wait(); toast("Purchased!"); refresh();
+      } catch (e) { toast(e.reason || e.message, "error"); }
+    };
+
+    // Admin: create event
+    $("#createEventBtn").addEventListener("click", async () => {
+      try {
+        const name = $("#evName").value, date = $("#evDate").value, venue = $("#evVenue").value;
+        const price = ethers.parseEther($("#evPrice").value), total = parseInt($("#evTotal").value);
+        status("Creating event...");
+        const tx = await contract.createEvent(name, date, venue, price, total);
+        await tx.wait(); toast("Event created!"); refresh();
+      } catch (e) { toast(e.reason || e.message, "error"); }
+    });
+  </script>
+</body>
+</html>

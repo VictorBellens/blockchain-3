@@ -1,0 +1,27 @@
+﻿No contracts to compile
+No Solidity tests to compile
+
+Running Solidity tests
+
+
+Running Mocha tests
+
+
+  VendingMachine
+    ΓêÜ should allow a user to purchase an item with exact payment
+    ΓêÜ should reject purchase with insufficient payment (54ms)
+    ΓêÜ should reject purchase when stock is insufficient
+    ΓêÜ should reject restock from non-admin user
+    ΓêÜ should record purchase in buyer's history and decrease stock
+    ΓêÜ should refund excess ETH on overpayment
+    ΓêÜ should allow admin to restock a product
+    ΓêÜ should reject purchase of non-existent product
+    ΓêÜ should reject addProduct from non-admin
+    ΓêÜ should allow admin to withdraw contract balance after sales
+
+
+  10 passing (526ms)
+
+
+10 passing (10 mocha)
+

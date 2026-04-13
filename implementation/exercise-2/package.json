@@ -1,0 +1,23 @@
+{
+  "name": "exercise-2",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node fix-arm64.js",
+    "test": "npx hardhat test",
+    "compile": "npx hardhat build",
+    "web2": "node app/web2/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Event Ticket Booking - Web2 and Web3 versions",
+  "devDependencies": {
+    "hardhat": "^3.0.0",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.0.0"
+  }
+}

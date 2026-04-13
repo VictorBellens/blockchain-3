@@ -1,0 +1,36 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-83a50eaf686c473ffba18f557a594b34e73ad44c",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/VendingMachine.sol": "project/contracts/VendingMachine.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/VendingMachine.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\n/**\n * @title VendingMachine\n * @notice A decentralized vending machine where users can browse products,\n *         purchase items with ETH, and track ownership of purchased goods.\n *\n * Design choices:\n * - Product catalog (name, price, stock) lives on-chain because it drives\n *   purchase validation and must be trustless.\n * - Purchase history is stored on-chain so ownership is verifiable by anyone.\n * - Product images/descriptions are kept off-chain (frontend) to save gas.\n */\ncontract VendingMachine {\n    address public admin;\n\n    struct Product {\n        string name;\n        uint256 price;   // in wei\n        uint256 stock;\n        bool exists;\n    }\n\n    struct Purchase {\n        uint256 productId;\n        uint256 quantity;\n        uint256 totalPaid;\n        uint256 timestamp;\n    }\n\n    uint256 public nextProductId;\n    mapping(uint256 => Product) public products;\n    mapping(address => Purchase[]) private purchaseHistory;\n\n    event ItemPurchased(\n        address indexed buyer,\n        uint256 indexed productId,\n        uint256 quantity,\n        uint256 totalPaid\n    );\n\n    event ProductRestocked(\n        uint256 indexed productId,\n        uint256 addedQuantity,\n        uint256 newStock\n    );\n\n    event ProductAdded(\n        uint256 indexed productId,\n        string name,\n        uint256 price,\n        uint256 stock\n    );\n\n    event FundsWithdrawn(address indexed admin, uint256 amount);\n\n    modifier onlyAdmin() {\n        require(msg.sender == admin, \"Only admin can perform this action\");\n        _;\n    }\n\n    constructor() {\n        admin = msg.sender;\n    }\n\n    /// @notice Add a new product to the vending machine (admin only)\n    function addProduct(\n        string calldata _name,\n        uint256 _price,\n        uint256 _stock\n    ) external onlyAdmin returns (uint256) {\n        require(bytes(_name).length > 0, \"Product name cannot be empty\");\n        require(_price > 0, \"Price must be greater than zero\");\n\n        uint256 id = nextProductId;\n        products[id] = Product(_name, _price, _stock, true);\n        nextProductId++;\n\n        emit ProductAdded(id, _name, _price, _stock);\n        return id;\n    }\n\n    /// @notice Purchase a quantity of a product by sending the correct ETH\n    function purchase(uint256 _productId, uint256 _quantity) external payable {\n        require(_quantity > 0, \"Quantity must be at least 1\");\n\n        Product storage product = products[_productId];\n        require(product.exists, \"Product does not exist\");\n        require(product.stock >= _quantity, \"Not enough stock available\");\n\n        uint256 totalCost = product.price * _quantity;\n        require(msg.value >= totalCost, \"Insufficient payment\");\n\n        product.stock -= _quantity;\n\n        purchaseHistory[msg.sender].push(\n            Purchase(_productId, _quantity, totalCost, block.timestamp)\n        );\n\n        // Refund overpayment\n        uint256 excess = msg.value - totalCost;\n        if (excess > 0) {\n            (bool sent, ) = payable(msg.sender).call{value: excess}(\"\");\n            require(sent, \"Refund failed\");\n        }\n\n        emit ItemPurchased(msg.sender, _productId, _quantity, totalCost);\n    }\n\n    /// @notice Restock a product (admin only)\n    function restock(uint256 _productId, uint256 _quantity) external onlyAdmin {\n        require(products[_productId].exists, \"Product does not exist\");\n        require(_quantity > 0, \"Quantity must be at least 1\");\n\n        products[_productId].stock += _quantity;\n\n        emit ProductRestocked(\n            _productId,\n            _quantity,\n            products[_productId].stock\n        );\n    }\n\n    /// @notice Withdraw accumulated sales revenue (admin only)\n    function withdraw() external onlyAdmin {\n        uint256 balance = address(this).balance;\n        require(balance > 0, \"No funds to withdraw\");\n\n        (bool sent, ) = payable(admin).call{value: balance}(\"\");\n        require(sent, \"Withdrawal failed\");\n\n        emit FundsWithdrawn(admin, balance);\n    }\n\n    /// @notice Get full product info\n    function getProduct(uint256 _productId)\n        external\n        view\n        returns (string memory name, uint256 price, uint256 stock)\n    {\n        Product storage p = products[_productId];\n        require(p.exists, \"Product does not exist\");\n        return (p.name, p.price, p.stock);\n    }\n\n    /// @notice Get all purchases for a given buyer\n    function getPurchases(address _buyer)\n        external\n        view\n        returns (Purchase[] memory)\n    {\n        return purchaseHistory[_buyer];\n    }\n\n    /// @notice Get total number of products\n    function getProductCount() external view returns (uint256) {\n        return nextProductId;\n    }\n}\n"
+      }
+    }
+  }
+}
